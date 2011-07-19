@@ -19,18 +19,13 @@
 //    Improved Stats written by Tom Lightspeed (tomlightspeed@gmail.com + http://facebook.com/tomlightspeed)
 //    Developed Socially for http://ozco.in
 //    If you liked my work, want changes/etc please contact me or donate 16p56JHwLna29dFhTRcTAurj4Zc2eScxTD.
-//    Special thanks to Wayno, Graet & Ycros from #ozcoin on freenode.net for their help :-)
-//    Additional thanks to Krany from #ozcoin on freenode.net.
 //    May the force be with you.
 
 $pageTitle = "- Stats";
 include ("includes/header.php");
 
-
 $numberResults = 30;
 $last_no_blocks_found = 5;
-
-$onion_winners = 10;
 
 $BTC_per_block = 50; // don't keep this hardcoded
 
@@ -40,42 +35,24 @@ $difficulty = $bitcoinController->query("getdifficulty");
 //time = difficulty * 2**32 / hashrate
 // hashrate is in Mhash/s
 function CalculateTimePerBlock( $btc_difficulty, $_hashrate ){
-	if( $btc_difficulty > 0 && $_hashrate > 0 )
-	{
-		$find_time_hours = ((($btc_difficulty * bcpow(2,32)) / ($_hashrate * bcpow(10,6))) / 3600);
-	}
-	else
-	{
-		$find_time_hours = 0;
-	}
-
+	$find_time_hours = ((($btc_difficulty * bcpow(2,32)) / ($_hashrate * bcpow(10,6))) / 3600);
 	return $find_time_hours;
 }
 
 function CoinsPerDay( $time_per_block, $btc_block ){
-	if( $time_per_block > 0 && $btc_block > 0 )
-	{
-		$coins_per_day = (24 / $time_per_block) * $btc_block;
-	}
-	else
-	{
-		$coins_per_day = 0;
-	}
-
+	$coins_per_day = (24 / $time_per_block) * $btc_block;
 	return $coins_per_day;
 }
 ?>
 
-<div id="stats_wrap">
 <?php
 if( !$cookieValid ){
-	echo "<div id=\"new_user_message\"><p>Welcome to <a href=\"/\">Simplecoin.us</a>! Please login or <a href=\"register.php\">join us</a> to get detailed stats and graphs relating to your hashing!</p></div>";
+	echo "<div id=\"new_user_message\">Welcome to akpool.org, register and join in on the fun!</p></div>";
 }
 ?>
-<div id="stats_members">
-<table class="stats_table member_width">
+<table border = 2>
 <tr><th colspan="4" scope="col">Top <?php echo $numberResults;?> Hashrates</th></tr>
-<tr><th scope="col">Rank</th><th scope="col">User Name</th><th scope="col">MH/s</th><th scope="col">BTC/Day</th></tr>
+<tr><th scope="col">Rank</th><th scope="col">User Name</th><th scope="col">MH/s</th><th scope="col">Est. BTC/Day</th></tr>
 <?php
 
 // TOP 30 CURRENT HASHRATES  *************************************************************************************************************************
@@ -85,12 +62,15 @@ $rank = 1;
 $user_found = false;
 
 while ($resultrow = mysql_fetch_object($result)) {
-	$resdss = mysql_query("SELECT username FROM webUsers WHERE id=$resultrow->id");
+	if ($resultrow->hashrate > 1)
+	{
+	$resdss = mysql_query("SELECT username,anonymous FROM webUsers WHERE id=$resultrow->id");
 	$resdss = mysql_fetch_object($resdss);
 	$username = $resdss->username;
+	$anonymousstatus = $resdss->anonymous;
 	if( $cookieValid && $username == $userInfo->username )
 	{
-		echo "<tr class=\"user_position\">";
+		echo "<tr bgcolor=\"lightblue\">";
 		$user_found = true;
 	}
 	else
@@ -103,18 +83,33 @@ while ($resultrow = mysql_fetch_object($result)) {
 	{
 		echo "&nbsp;<img src=\"/images/crown.png\" />";
 	}
-
+	
 	$user_hash_rate = $resultrow->hashrate;
-
+	if ($anonymousstatus == 'N')
+	{
 	echo "</td><td>" . $username . "</td><td>" . number_format( $user_hash_rate ) . "</td><td>&nbsp;";
-
+	}
+	else
+	{
+        echo "</td><td>Anonymous</td><td>" . number_format( $user_hash_rate ) . "</td><td>&nbsp;";
+	}
+	
+	if ($user_hash_rate > 1)
+	{
+	
 	$time_per_block = CalculateTimePerBlock($difficulty, $user_hash_rate);
-
+	
 	$coins_day = CoinsPerDay($time_per_block, $BTC_per_block);
-
+	
 	echo number_format( $coins_day, 3 );
-
+	}
+	else
+	{
+	echo "0.000";
+	}
+	
 	echo "</td></tr>";
+	}
 
 	$rank++;
 }
@@ -131,39 +126,46 @@ if( $cookieValid && $user_found == false )
 	mysql_query( $query_init );
 	$result = mysql_query( $query_getrank );
 	$row = mysql_fetch_array( $result );
-
+	
 	$user_hashrate = $row['hashrate'];
 
 	echo "<tr class=\"user_position\"><td>" . $row['rank'] . "</td><td>" . $userInfo->username . "</td><td>" . number_format( $user_hashrate ) . "</td><td>";
-
+	
+	if ($user_hashrate > 0)
+	{
 	$time_per_block = CalculateTimePerBlock($difficulty, $user_hashrate);
-
+	
 	$coins_day = CoinsPerDay($time_per_block, $BTC_per_block);
+	}
+	else
+	{
+	$coin_days = 0;
 
+	}
+	
 	echo number_format( $coins_day, 3 ) . "</td></tr>";
 }
 ?>
 </table>
-</div>
-<div id="stats_lifetime">
-<table class="stats_table member_width">
+<table border = 2>
 <tr><th colspan="3" scope="col">Top <?php echo $numberResults;?> Lifetime Shares</th></tr>
 <tr><th scope="col">Rank</th><th scope="col">User Name</th><th scope="col">Shares</th></tr>
 <?php
 
 // TOP 30 LIFETIME SHARES  *************************************************************************************************************************
 
-$result = mysql_query("SELECT id, share_count-stale_share_count+shares_this_round AS shares FROM webUsers ORDER BY shares DESC LIMIT " . $numberResults);
+$result = mysql_query("SELECT id, share_count, stale_share_count FROM webUsers ORDER BY share_count DESC LIMIT " . $numberResults);
 $rank = 1;
 $user_found = false;
 
 while ($resultrow = mysql_fetch_object($result)) {
-	$resdss = mysql_query("SELECT username, share_count-stale_share_count+shares_this_round AS shares FROM webUsers WHERE id=$resultrow->id");
+	$resdss = mysql_query("SELECT username,anonymous FROM webUsers WHERE id=$resultrow->id");
 	$resdss = mysql_fetch_object($resdss);
 	$username = $resdss->username;
+        $anonymousstatus = $resdss->anonymous;
 	if( $cookieValid && $username == $userInfo->username )
 	{
-		echo "<tr class=\"user_position\">";
+		echo "<tr bgcolor=\"lightblue\">";
 		$user_found = true;
 	}
 	else
@@ -178,7 +180,17 @@ while ($resultrow = mysql_fetch_object($result)) {
 		echo "&nbsp;<img src=\"/images/crown.png\" />";
 	}
 
-	echo "</td><td>" . $username . "</td><td>" . number_format($resultrow->shares) . "</td></tr>";
+       if ($anonymousstatus == 'N')
+        {
+        echo "</td><td>" . $username . "</td><td>" . number_format($resultrow->share_count - $resultrow->stale_share_count) . "</td></tr>";
+        }
+        else
+        {
+        echo "</td><td>Anonymous</td><td>" . number_format($resultrow->share_count - $resultrow->stale_share_count) . "</td></tr>";
+        }
+
+
+
 	$rank++;
 }
 
@@ -187,7 +199,7 @@ if( $cookieValid && $user_found == false )
 	$query_init       = "SET @rownum := 0";
 
 	$query_getrank    =   "SELECT rank, shares FROM (
-                        SELECT @rownum := @rownum + 1 AS rank, share_count-stale_share_count+shares_this_round AS shares, id
+                        SELECT @rownum := @rownum + 1 AS rank, share_count-stale_share_count AS shares, id
                         FROM webUsers ORDER BY shares DESC
                         ) as result WHERE id=" . $userInfo->id;
 
@@ -200,42 +212,23 @@ if( $cookieValid && $user_found == false )
 ?>
 </table>
 </div>
-<div id="stats_server">
-
+<div id="rightcolumn">
+<table class="stats_table server_width">
 <?php
+
 // START SERVER STATS *************************************************************************************************************************
-
-echo "<table class=\"stats_table server_width\">";
-
 echo "<tr><th colspan=\"2\" scope=\"col\">Server Stats</td></tr>";
-
-$hashrate = $settings->getsetting('currenthashrate');
-$show_hashrate = round($hashrate / 1000,3);
-
-echo "<tr><td class=\"leftheader\">Pool Hash Rate</td><td>". number_format($show_hashrate, 3) . " Ghashes/s</td></tr>";
-
-$results = mysql_query("SELECT (1 - (SUM(stale_share_count)/SUM(share_count))) * 100 AS efficiency FROM webUsers") or sqlerr(__FILE__, __LINE__);
-$row = mysql_fetch_object($results);
-
-echo "<tr><td class=\"leftheader\">Pool Efficiency</td><td><span class=\"green\">". number_format($row->efficiency, 2) . "%</span></td></tr>";
-
-$res = mysql_query("SELECT count(webUsers.id) FROM webUsers WHERE hashrate > 0") or sqlerr(__FILE__, __LINE__);
-$row = mysql_fetch_array($res);
-$users = $row[0];
-
-echo "<tr><td class=\"leftheader\">Current Users Mining</td><td>" . number_format($users) . "</td></tr>";
-echo "<tr><td class=\"leftheader\">Current Total Miners</td><td>" . number_format($settings->getsetting('currentworkers')) . "</td></tr>";
 
 $current_block_no = $bitcoinController->query("getblocknumber");
 
-echo "<tr><td class=\"leftheader\">Current Block</td><td><a href=\"http://blockexplorer.com/b/" . $current_block_no . "\">";
+echo "<tr><td class=\"leftheader\">Current Block</td><td><a href=\"http://blockexplorer.com/b/" . $current_block_no . " \">";
 echo number_format($current_block_no) . "</a></td></tr>";
 
 $show_difficulty = round($difficulty, 2);
 
 echo "<tr><td class=\"leftheader\">Current Difficulty</th><td><a href=\"http://dot-bit.org/tools/nextDifficulty.php\">" . number_format($show_difficulty) . "</a></td></tr>";
 
-$result = mysql_query("SELECT n.blockNumber, n.confirms, n.timestamp FROM winning_shares w, networkBlocks n WHERE w.blockNumber = n.blockNumber ORDER BY w.blockNumber DESC LIMIT 1");
+$result = mysql_query("SELECT blockNumber, confirms, timestamp FROM networkBlocks WHERE confirms > 1 ORDER BY blockNumber DESC LIMIT 1");
 
 $show_time_since_found = false;
 $time_last_found;
@@ -246,40 +239,105 @@ if ($resultrow = mysql_fetch_object($result)) {
 	$confirm_no = $resultrow->confirms;
 
 	echo "<tr><td class=\"leftheader\">Last Block Found</td><td><a href=\"http://blockexplorer.com/b/" . $found_block_no . "\">" . number_format($found_block_no) . "</a></td></tr>";
+	echo "<tr><td class=\"leftheader\">Confirmations</td><td>" . number_format($confirm_no);
 
+	if( $confirm_no > 99 )
+	{
+		echo "&nbsp;<img src=\"/images/excited.gif\" />";
+	}
+
+	echo "</td></tr>";
+	
 	$time_last_found = $resultrow->timestamp;
-
+	
+	echo "<tr><td class=\"leftheader\">Time Found</td><td>".strftime("%B %d %Y %r", $time_last_found)."</td></tr>";
+	
 	$show_time_since_found = true;
 }
 
-$time_to_find = CalculateTimePerBlock($difficulty, $hashrate);
+$res = mysql_query("SELECT count(webUsers.id) FROM webUsers WHERE hashrate > 0") or sqlerr(__FILE__, __LINE__);
+$row = mysql_fetch_array($res);
+$users = $row[0];
+
+echo "<tr><td class=\"leftheader\">Current Users Mining</td><td>" . number_format($users) . "</td></tr>";
+echo "<tr><td class=\"leftheader\">Current Total Miners</td><td>" . number_format($settings->getsetting('currentworkers')) . "</td></tr>";
+
+$hashrate = $settings->getsetting('currenthashrate');
+$show_hashrate = round($hashrate / 1000,3);
+
+$time_to_find = CalculateTimePerBlock(($difficulty - $settings->getsetting('currentroundshares') + ($difficulty * .02)), $hashrate);
+$interval_to_find = CalculateTimePerBlock($settings->getsetting('currentroundshares'), $hashrate);
+$percentagecomplete = ($settings->getsetting('currentroundshares') / ($difficulty + ($difficulty * .02 ) ) ) * 100;
 // change 25.75 hours to 25:45 hours
 $intpart = floor( $time_to_find );
+$intpart2 = floor( $interval_to_find );
 $fraction = $time_to_find - $intpart; // results in 0.75
+$fraction2 = $interval_to_find - $intpart2;
 $minutes = number_format(($fraction * 60 ),0);
+$minutes2 = number_format(($fraction2 * 60 ),0);
 
-echo "<tr><td class=\"leftheader\">Est. Time To Find Block</td><td>" . number_format($time_to_find,0) . " Hours " . $minutes . " Minutes</td></tr>";
+echo "<tr><td class=\"leftheader\">Pool Hash Rate</td><td>". number_format($show_hashrate, 3) . " Ghashes/s</td></tr>";
 
-$now = new DateTime( "now" );
-if (isset($time_last_found))
-	$hours_diff = ($now->getTimestamp() - $time_last_found) / 3600;
-else 
-	$hours_diff = 0;
-	
-if( $hours_diff < $time_to_find )
+
+$results = mysql_query("SELECT (1 - (SUM(stale_share_count)/SUM(share_count))) * 100 AS efficiency FROM webUsers") or sqlerr(__FILE__, __LINE__);
+$row = mysql_fetch_object($results);
+if ($row->efficiency == 0)
 {
-	$time_last_found_out = "<span class=\"green\">";
-}
-elseif( ( $hours_diff * 2 ) > $time_to_find )
-{
-	$time_last_found_out = "<span class=\"red\">";
+echo "<tr><td class=\"leftheader\">Pool Efficiency</td><td><span>Solve a block first!</span></td></tr>";
 }
 else
 {
-	$time_last_found_out = "<span class=\"orange\">";
+echo "<tr><td class=\"leftheader\">Pool Efficiency</td><td><span>". number_format($row->efficiency, 2) . "%</span></td></tr>";
 }
+echo "<tr><td>Estimated time for round finish</td><td>";
+if ($time_to_find < 0)
+{
+$time_to_find = $time_to_find * -1;
+echo "<font color=\"red\">" . number_format($time_to_find,0) . " Hours " . $minutes . " Minutes ago</font></td></tr>";
+}
+else
+{
+echo number_format($time_to_find,0) . " Hours " . $minutes . " Minutes</td></tr>";
+}
+echo "<tr><td class=\"leftheader\">Interval between blocks</td><td>" . number_format($interval_to_find,0) . " Hours " . $minutes2 . " Minutes</td></tr>"; 
+echo "<tr><td>Block Percentage</td>";
+if ($percentagecomplete < 70)
+{
+echo "<td><font color=\"green\">";
+}
+else if ($percentagecomplete > 180)
+{
+echo "<td><font color=\"red\">";
+}
+else if ($percentagecomplete > 110)
+{
+echo "<td><font color=\"orange\">";
+}
+else
+{
+echo "<td>";
+}
+echo number_format($percentagecomplete,2);
+echo "%</font></td></tr>";
+//GET SERVER LOADS
+$loadresult = @exec('uptime');
+preg_match("/averages?: ([0-9\.]+),[\s]+([0-9\.]+),[\s]+([0-9\.]+)/",$loadresult,$avgs);
+//divide by 8 for 8 processors then multiple by 100 for percentage
+$loadavg = ($avgs[1] / 8 * 100);
+echo "<tr><td class=\"leftheader\">Server Load</td><td>" . number_format($loadavg,1) . "%</td></tr>";
 
-$time_last_found_out = $time_last_found_out . floor( $hours_diff ). " Hours " . $hours_diff*60%60 . " Minutes</span>";
+$now = new DateTime( "now" );
+if (!isset($time_last_found))
+{
+$time_last_found = "1";
+}
+$hours_diff = ($now->getTimestamp() - $time_last_found) / 3600;
+$time_last_found_out = $hours_diff%24 . " Hours " . $hours_diff*60%60 . " Minutes";
+
+if ($time_last_found == "1")
+{
+$time_last_found_out = "<font color=\"red\">Infinity!</font>";
+}
 
 echo "<tr><td class=\"leftheader\">Time Since Last Block</td><td>" . $time_last_found_out . "</td></tr>";
 
@@ -290,7 +348,8 @@ echo "</table>";
 echo "<table class=\"stats_table server_width top_spacing\">";
 echo "<tr><th scope=\"col\" colspan=\"4\">Last $last_no_blocks_found Blocks Found - <a href=\"blocks.php\">All Blocks Found</a></th></tr>";
 echo "<tr><th scope=\"col\">Block</th><th scope=\"col\">Confirms</th><th scope=\"col\">Finder</th><th scope=\"col\">Time</th></tr>";
-$result = mysql_query("SELECT n.blockNumber, n.confirms, n.timestamp FROM winning_shares w, networkBlocks n WHERE w.blockNumber = n.blockNumber ORDER BY w.blockNumber DESC LIMIT " . $last_no_blocks_found);
+
+$result = mysql_query("SELECT blockNumber, confirms, timestamp FROM networkBlocks WHERE confirms > 1 ORDER BY blockNumber DESC LIMIT " . $last_no_blocks_found);
 
 while($resultrow = mysql_fetch_object($result)) {
 	echo "<tr>";
@@ -317,100 +376,46 @@ while($resultrow = mysql_fetch_object($result)) {
 
 echo "</table>";
 
-// SERVER BLOCKS/TIME GRAPH *************************************************************************************************************************
+// SERVER HASHRATE/TIME GRAPH *************************************************************************************************************************
 // http://www.filamentgroup.com/lab/update_to_jquery_visualize_accessible_charts_with_html5_from_designing_with/
 // table is hidden, graph follows
-
-echo "<table id=\"blocks_over_week\" class=\"hide\">";
-echo "<caption>Blocks Found Over Last Week</caption>";
-echo "<thead><tr><td></td>";
-
-// get last 7 days of blocks, confirms over 0
-$query = "select sum(no_blocks) as blocks_found, DATE_FORMAT(date, '%b %e') as date from (
-SELECT COUNT(blockNumber) as no_blocks, CAST(FROM_UNIXTIME(timestamp) as date) as date
-FROM networkBlocks
-WHERE confirms > 0
-AND CAST(FROM_UNIXTIME(timestamp) as DATE) BETWEEN DATE_SUB(CURDATE(), INTERVAL 6 DAY)
-        AND curdate()
-GROUP BY DAY(FROM_UNIXTIME(timestamp))
-UNION
-SELECT 0, CAST(FROM_UNIXTIME(timestamp) as DATE) as date
-FROM networkBlocks
-WHERE CAST(FROM_UNIXTIME(timestamp) as DATE) BETWEEN DATE_SUB(CURDATE(), INTERVAL 6 DAY)
-        AND curdate()
-GROUP BY DAY(FROM_UNIXTIME(timestamp))
-
-) as blah group by date";
-$result = mysql_query($query);
-
-while($resultrow = mysql_fetch_object($result)) {
-	echo "<th scope=\"col\">" . $resultrow->date . "</th>";
-}
-
-echo "</thead><tbody><tr><th scope=\"row\">Ozco.in Pool</th>";
-
-// re-iterate through results
-mysql_data_seek($result, 0);
-
-while($resultrow = mysql_fetch_object($result)) {
-	echo "<td>" . $resultrow->blocks_found . "</td>";
-}
-
-echo "</tbody></table>";
-
-echo "</div><div class=\"clear\"></div></div><div id=\"stats_wrap_2\" class=\"top_spacing\">";
-
- // ONION WINNERS (most stale % + must be active this round)  *************************************************************************************************************************
-
-echo "<div id=\"stats_onions\">";
-echo "<table class=\"stats_table member_width\">";
-echo "<tr><th colspan=\"3\" scope=\"col\">Our " . $onion_winners . " Onion Winners (Active this Round)</th></tr>";
-echo "<tr><th scope=\"col\">Rank</th><th scope=\"col\">User Name</th><th scope=\"col\">% Of Stales</th></tr>";
-
-$result = mysql_query("SELECT id, username, (stale_share_count / share_count)*100 AS stale_percent FROM webUsers WHERE shares_this_round > 0 ORDER BY stale_percent DESC LIMIT " . $onion_winners);
-$rank = 1;
-$user_found = false;
-
-while ($resultrow = mysql_fetch_object($result)) {
-	//$resdss = mysql_query("SELECT username FROM webUsers WHERE id=$resultrow->id");
-	//$resdss = mysql_fetch_object($resdss);
-	//$username = $resdss->username;
-	if( $cookieValid && $resultrow->username == $userInfo->username )
-	{
-		echo "<tr class=\"user_position\">";
-		$user_found = true;
-	}
-	else
-	{
-		echo "<tr>";
-	}
-
-	echo "<td>" . $rank;
-
-	echo "&nbsp;<img class=\"onion\" src=\"/images/onion.png\" />";
-
-	echo "</td><td>" . $resultrow->username . "</td><td>" . number_format($resultrow->stale_percent, 2) . "%</td></tr>";
-	$rank++;
-}
+//   uncomment once db changes have been made
+//echo "<table class=\"hide\">";
+//echo "<caption>Pool Hashrate over 1 Month</caption>";
+//echo "<thead><tr><td></td>";
+//
+//echo "</thead><tbody>";
+//
+//echo "</tbody></table>";
+   
 /*
-if( $cookieValid && $user_found == false )
-{
-	$query_init       = "SET @rownum := 0";
-
-	$query_getrank    =   "SELECT rank, stale_percent FROM (
-                        SELECT @rownum := @rownum + 1 AS rank, (stale_share_count / share_count)*100 AS stale_percent FROM webUsers WHERE shares_this_round > 0 ORDER BY stale_percent DESC) as result WHERE id=" . $userInfo->id;
-
-	mysql_query( $query_init );
-	$result = mysql_query( $query_getrank );
-	$row = mysql_fetch_object( $result );
-
-	echo "<tr class=\"user_position\"><td>" . $row->rank . "</td><td>" . $userInfo->username . "</td><td>" . $row->stale_percent . "%</td></tr>";
-}
+	<table>
+	<caption>2009 Employee Sales by Department</caption>
+	<thead>
+	<tr>
+	<td></td>
+	<th scope="col">food</th>
+	<th scope="col">auto</th>
+	<th scope="col">household</th>
+	<th scope="col">furniture</th>
+	<th scope="col">kitchen</th>
+	<th scope="col">bath</th>
+	</tr>
+	</thead>
+	<tbody>
+	<tr>
+	<th scope="row">Mary</th>
+	<td>190</td>
+	<td>160</td>
+	<td>40</td>
+	<td>120</td>
+	<td>30</td>
+	<td>70</td>
+	</tr>
+		</tbody>
+	</table>
 */
-echo "</table></div>";
-
-echo "<div class=\"clear\"></div></div>";
-
+	
 include("includes/footer.php");
 
 ?>

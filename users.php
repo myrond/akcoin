@@ -79,7 +79,7 @@ if($show == "searchUsers"){
 				<?php
 					}
 					//Output Footer
-					include($footer);
+					include ("includes/footer.php");
 					///////////////
 				?>
 			</div>

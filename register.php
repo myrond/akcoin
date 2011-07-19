@@ -15,7 +15,6 @@
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 // 	  BTC Donations: 163Pv9cUDJTNUbadV4HMRQSSj3ipwLURRc
-
 $pageTitle = "- Register";
 include ("includes/header.php");
 
@@ -53,7 +52,12 @@ if (isset($_POST["act"]))
 		$rPass		= mysql_real_escape_string($_POST["pass2"]);
 		$email		= mysql_real_escape_string($_POST["email"]);
 		$email2		= mysql_real_escape_string($_POST["email2"]);
-		$authPin	= mysql_real_escape_string($_POST["authPin"]);
+		$authPin	= (string) $_POST["authPin"];
+
+	$usernameExistsQ = mysql_query("SELECT `id` FROM `webUsers` WHERE `username` = '".$username."'");
+	$usernameExists = mysql_num_rows($usernameExistsQ);
+
+if($usernameExists == 0){
 	
 		$validRegister = 1;
 			//Validate username
@@ -85,7 +89,7 @@ if (isset($_POST["act"]))
 				}
 			}
 			
-			//validate authpin
+			//valid date authpin is valid
 			if(strlen($authPin) >= 4){
 				if(!is_numeric($authPin)){
 					$validRegister = 0;
@@ -101,22 +105,19 @@ if (isset($_POST["act"]))
 			$emailAuthPin = genRandomString(10);
 			$secret = genRandomString(10);
 			$apikey = hash("sha256",$username.$salt);
-			//Check to see if user exists already
-			$testUserQ = mysql_query("SELECT id FROM webUsers WHERE username = '".$username."' LIMIT 1");
-			//If not, create new user
-			if (!$testUserQ || mysql_num_rows($testUserQ) == 0) {			
-				$result = mysql_query("INSERT INTO webUsers (admin, username, pass, email, emailAuthPin, secret, loggedIp, sessionTimeoutStamp, accountLocked, accountFailedAttempts, pin, api_key) 
-										VALUES (0, '$username', '".hash("sha256", $pass.$salt)."', '$email', '$emailAuthPin', '$secret', '0', '0', '0', '0', '".hash("sha256", $authPin.$salt)."','$apikey')");
-				$returnId = mysql_insert_id();
-				mysql_query("INSERT INTO accountBalance (userId, balance) VALUES ($returnId,'0')");
-				mysql_query("INSERT INTO pool_worker (associatedUserId, username, password) VALUES ($returnId,'".$username.".1','x')");
-				$goodMessage = "Your account has been successfully created. Please login to continue.";
-			} else {
-				$returnError = "Account already exists. Please choose a different username.";
+			connectToDb();
+			$result = mysql_query("INSERT INTO webUsers (`admin`, `username`, `pass`, `email`, `emailAuthPin`, `secret`, `loggedIp`, `sessionTimeoutStamp`, `accountLocked`, `accountFailedAttempts`, `pin`, api_key) 
+									VALUES ('0', '".$username."', '".hash("sha256",$pass.$salt)."', '".$email."', '".$emailAuthPin."', '".$secret."', '0', '0', '0', '0', '".hash("sha256", $authPin.$salt)."','".$apikey."')");
+			$returnId = mysql_insert_id();
+			mysql_query("INSERT INTO accountBalance (userId, balance) VALUES (".$returnId.",'0')");
+			mysql_query("INSERT INTO pool_worker (associatedUserId, username, password) VALUES (".$returnId.",'".$username.".1','1234')");
+			$goodMessage = "Your account has been successfully created. Please login to continue.";
+		}else{
+			$returnError = "Database error | User was not added to database, Please contact the admin.";
 			}
-		}		
-	}
-}
+}else if($usernameExists > 0){
+								$returnError = "That username is already registered with us";
+}}}
 
 //Display Error and Good Messages(If Any)
 echo "<span class=\"goodMessage\">".antiXss($goodMessage)."</span><br/>";

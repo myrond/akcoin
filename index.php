@@ -18,19 +18,21 @@
 
 include ("includes/header.php");
 ?>
+<h1>Welcome to AlaskaMiningPool.org</h1> <br/>
 
-<h1>Welcome to SimpleCoin.us</h1> <br/>
+We don't just mine oil anymore, you betcha!<br>
+This is a -TEST ONLY- sample of the akpool fork of simplecoin
 
-If you are a new user, please create an account, Click "Getting Started", and follow the instructions on that page.<br/><br/>
+<?
+$blogPostsQ = mysql_query("SELECT `timestamp`, `title`, `message` FROM `news` ORDER BY `timestamp` DESC");
+                while($blog = mysql_fetch_array($blogPostsQ)){
 
-Simplecoin is run completely by opensource software. Even this website is opensource!<br/><br/>
+                                ?><h2 style="text-decoration:underline;"><?php echo $blog["title"]." | ".date("M,d Y g:ja", $blog["timestamp"]);?></h2><br/><?
+                                $text = nl2br($blog["message"]);
+                                echo "$text";
+}
 
-We currently have a fee of 0.001% and use cheat-proof scoring to ensure payout of your hard work.<br/><br/>
-
-If you have any issues, please note them in the forum.<br/><br/>
-
-Thank you!<br/>
-
+?>
 
 <?php include ("includes/footer.php"); ?>
 

@@ -21,24 +21,27 @@ Note From Author: Keep the original donate address in the source files when tran
 Please donate at the following address: 1Fc2ScswXAHPUgj3qzmbRmwWJSLL2yv8Q
 */
 //This page will attempt to take informtion from the user and create an ecrypted session inside of a cookie
+//Set page starter variables//
+$cookieValid = 0;
 
-//Include site functions
+//Include hashing functions
 include("includes/requiredFunctions.php");
-		
+	
+	
 //Filter input results before querying them into database
 $user = mysql_real_escape_string($_POST["username"]);
 $pass = mysql_real_escape_string($_POST["password"]);
 
 //Check the supplied username & password with the saved username & password
+connectToDb();
 $checkPassQ = mysql_query("SELECT id, secret, pass, accountLocked, accountFailedAttempts FROM webUsers WHERE username = '".$user."' LIMIT 0,1");
 $checkPass = mysql_fetch_object($checkPassQ);
 $userExists = $checkPass->id;
 
-if($checkPass->accountFailedAttempts >= 5){
-	echo "Account has been banned";
-	die();
+if($checkPass->accountFailedAttempts >= 3){
+echo "Account has been temporarily disabled due to failed login attempts;  please wait before trying again";
+die();
 }
-
 
 //Check if user exists before checking login data
 if($userExists > 0){
@@ -61,26 +64,27 @@ if($userExists > 0){
 				$hash		= $checkPass->secret.$dbHash.$ip.$timeoutStamp;
 				$cookieHash = hash("sha256", $hash.$salt);
 				setcookie($cookieName, $checkPass->id."-".$cookieHash, $timeoutStamp, $cookiePath, $cookieDomain);
-				$cookieValid = true;
-			
-				//Display output message
-				$outputMessage = "Welcome back, we'll be returning to the main page shortly";	
-				mysql_query("UPDATE webUsers SET accountFailedAttempts = 0 WHERE id = $userExists");
-			}else{
-				$outputMessage =  "Wrong username or password.";
-				$lock = $checkPass->accountFailedAttempts + 1;
-				mysql_query("UPDATE webUsers SET accountFailedAttempts = $lock WHERE id = $userExists");
+				$cookieValid = 1;
+                                //Display output message
+				$userxss = antiXss($user);
+                                $outputMessage = "Welcome back, $userxss we'll be returning to the main page shortly";
+                                $lock = 0;
+                                mysql_query("UPDATE `webUsers` SET accountFailedAttempts = ".$lock." WHERE `id` = ".$userExists);
+                        }else{
+                                $outputMessage =  "Wrong username or password? Huh? I copy and pasted how could it be wrong?...!!";
+                                $lock = $checkPass->accountFailedAttempts + 1;
+                                mysql_query("UPDATE `webUsers` SET accountFailedAttempts = ".$lock." WHERE `id` = ".$userExists);
 			}
 		}
 	}
 }else{
-	$outputMessage = "User name dosent exist!";
+	$outputMessage = "No soup for you!  Username password combination is not working!!";
 }
 ?>
 <html>
   <head>
 	<title><?php echo antiXss(outputPageTitle());?> </title>
-	<link rel="stylesheet" href="/css/mainstyle.css" type="text/css" />
+	<link rel="stylesheet" href="/css/dynamicdrive.css" type="text/css" />
 	<meta http-equiv="refresh" content="2;url=/">
   </head>
   <body>

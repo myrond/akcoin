@@ -16,40 +16,147 @@
 
 // 	  BTC Donations: 163Pv9cUDJTNUbadV4HMRQSSj3ipwLURRc
 
-//Set page starter variables//
+
+#enable caching for this script
+$cachethis = 1;
+//#alternative cache in memory using APC
+//if($cachethis == 2 && $html=apc_fetch($_SERVER['REQUEST_URI'].'2')){
+//echo $html;
+//exit;
+//}
+#add page content to $html just dont echo anything
+
+//printf($_SERVER["HTTP_ACCEPT_ENCODING"]);
+?>
+
+<?
+
+
+//Set page starter variables//	
 $cookieValid	= false;
 $activeMiners = false;
 
-include("requiredFunctions.php");
-include("universalChecklogin.php");
+include("requiredFunctions.php");	
+include("universalChecklogin.php"); 
 
-if (!isset($pageTitle)) $pageTitle = outputPageTitle();
+function html_compress($html){
+if(!empty($GLOBALS['cachethis'])){
+if($GLOBALS['cookieValid'] === false) {
+if($GLOBALS['cachethis'] === 1) {
+if ($_SERVER["REQUEST_METHOD"] === "GET") {
+if (strpos($_SERVER["HTTP_ACCEPT_ENCODING"],"gzip") !== false) {
+// gzip browser detected
+$filename = '/dev/shm/lua/'.md5($_SERVER['REQUEST_URI']).'.gz';
+$gz = gzopen($filename, "w9");
+gzwrite($gz, $html);
+gzclose($gz);
+}else
+{
+// NO gzip write a plain text file instead!
+$filename = '/dev/shm/lua/'.md5($_SERVER['REQUEST_URI']);
+$gz = fopen($filename, "w9");
+fwrite($gz, $html);
+fclose($gz);
+}
+}
+}
+}
+}
+return $html;
+}
+
+$html = "";
+ob_start("html_compress");
+
+
+
+
+
+if (!isset($pageTitle)) $pageTitle = outputPageTitle(); 
 else $pageTitle = outputPageTitle(). " ". $pageTitle;
-
+	
 ?>
 <!DOCTYPE unspecified PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <html>
 	<head>
 		<title><?php echo $pageTitle;?></title>
 		<!--This is the main style sheet-->
-		<link rel="stylesheet" href="css/mainstyle.css" type="text/css" />
-		<script type="text/javascript" src="/js/EnhanceJS/enhance.js"></script>
-		<script type="text/javascript">
-			// Run capabilities test
-			enhance({
-				loadScripts: [
-					'js/excanvas.js',
-					'js/jquery-1.6.1.min.js',
-					'js/visualize.jQuery.js',
-					'js/ozcoin_graphs.js'
-				],
-				loadStyles: [
-					'css/visualize.css',
-					'css/visualize-light.css'
-				]
-			});
-    	</script>
-		<link rel="shortcut icon" href="/images/favicon.png" />
+<?
+if ( isset($_SERVER["HTTPS"]))
+{
+?>
+		<link rel="stylesheet" href="https://akpool.org/css/main-ssl.css" type="text/css" /> 
+<?
+}
+else
+{
+?>
+                <link rel="stylesheet" href="/css/main.css" type="text/css" />
+<?
+}
+?>
+
+
+
+
+<style type="text/css"> 
+ 
+#tabs {
+	float:left;
+	width:100%;
+	font-size:93%;
+	line-height:normal;
+	border-bottom:1px solid #666;
+	margin-bottom:1em; /*margin between menu and rest of page*/
+	overflow:hidden;
+	}
+ 
+#tabs ul {
+	margin:0;
+	padding:10px 10px 0 0px;
+	list-style:none;
+	
+	}
+ 
+#tabs li {
+	display:inline;
+	margin:0;
+	padding:0;
+	}
+ 
+#tabs a {
+	float:left;
+	background:url("http://akpool.org/images/left.png") no-repeat left top;
+	margin:0;
+	padding:0 0 0 6px;
+	text-decoration:none;
+	}
+ 
+#tabs a span {
+	float:left;
+	display:block;
+	background:url("http://akpool.org/images/right.png") no-repeat right top;
+	padding:6px 15px 4px 6px;
+	margin-right:2px;
+	color:#FFF;
+	}
+ 
+/* Commented Backslash Hack hides rule from IE5-Mac \*/
+#tabs a span {float:none;}
+ 
+/* End IE5-Mac hack */
+#tabs a:hover span {
+	}
+ 
+#tabs a:hover {
+	background-position:0% -42px;
+	}
+ 
+#tabs a:hover span {
+	background-position:100% -42px;
+	}
+ 
+</style> 
 		<?php
 			//If user isn't logged in load the login.js
 			if(!$cookieValid){
@@ -60,22 +167,18 @@ else $pageTitle = outputPageTitle(). " ". $pageTitle;
 		?>
 	</head>
 	<body>
-		<div id="header">
-			<div id="logo">
-				<table width="100%" cellspacing="0" cellpadding="0" border="0">
-					<tr>
-					<td><img src="images/logo.jpg"></td>
-					<td align="right" valign="top" id="currentRates">
-						<table border="0" cellspacing="1">
-						<tr><td style="color: #FFF; text-align: right"><a href="http://www.mtgox.com" target="_blank" style="color: #FFF">MtGox (USD):</a></td><td style="color: #FFF">$<?php print $settings->getsetting('mtgoxlast'); ?></td></tr>
-						<tr><td style="color: #FFF; text-align: right">Current Hashrate:</td><td style="color: #FFF"><?php print round($settings->getsetting('currenthashrate')/1000,1); ?> GH/s</td></tr>
-						<tr><td style="color: #FFF; text-align: right">Current Workers:</td><td style="color: #FFF"><?php print $settings->getsetting('currentworkers'); ?></td></tr>
-						</table>
-					</td>
-				</tr>
-			</table>
+		<div id="topbar">	
+			<div id="logodiv">
+					<img src="images/logo.png">
 			</div>
+			<div id="toprightdiv">
+						<a href="http://www.mtgox.com" target="_blank">MtGox (USD):</a><?php print number_format($settings->getsetting('mtgoxlast'),1); ?>  
+						<a href="/hashhistory.php">Hashes:</a><?php print round($settings->getsetting('currenthashrate')/1000,1); ?> GH/s 
+						<a href="/workerhistory.php">Workers:</a><?php print $settings->getsetting('currentworkers'); ?> 
+						<a href="/sharehistory.php">Shares:</a><?php print $settings->getsetting('currentroundshares'); ?>
+</div>
+		<?php include ("menu.php"); ?>		
 		</div>
-		<?php include ("menu.php"); ?>
-		<?php include ("leftsidebar.php"); ?>
-		<div id="content">
+<div class="maincontainer">
+		<?php include ("leftsidebar.php"); ?>		
+<div id="middlecolumn">

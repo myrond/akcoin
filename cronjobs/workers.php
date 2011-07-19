@@ -16,15 +16,16 @@
 
 // 	  BTC Donations: 163Pv9cUDJTNUbadV4HMRQSSj3ipwLURRc
 
-//Check that script is run locally
-if (isset($_SERVER['REMOTE_ADDR']) && $_SERVER['REMOTE_ADDR'] != "127.0.0.1") {
-	echo "cronjobs can only be run locally.";
-	exit;
-}
-
 $includeDirectory = "/var/www/includes/";
 
 include($includeDirectory."requiredFunctions.php");
+
+//Verify source of cron job request
+if (isset($cronRemoteIP) && $_SERVER['REMOTE_ADDR'] !== $cronRemoteIP) {
+ die(header("Location: /"));
+}
+
+lock("workers.php");
 	
 /////////Update workers
 $bitcoinController = new BitcoinClient($rpcType, $rpcUsername, $rpcPassword, $rpcHost);
@@ -48,7 +49,7 @@ $r = log(1.0-$p+$p/$c);
 $B = 50;
 $los = log(1/(exp($r)-1));
 
-$currentWorkers = 0;
+$currentWorkers=0;
 //Active in past 10 minutes
 try {
 	$sql ="SELECT sum(a.id) IS NOT NULL AS active, p.username FROM pool_worker p LEFT JOIN ".
@@ -57,39 +58,16 @@ try {
 		  "SELECT count(id) AS id, username FROM shares_history WHERE time > DATE_SUB(now(), INTERVAL 10 MINUTE) group by username) a ON p.username=a.username group by username";
 	$result = mysql_query($sql);
 	while ($resultObj = mysql_fetch_object($result)) {
-		if ($resultObj->active == 1)
-			$currentWorkers += 1;
-		mysql_query("UPDATE pool_worker p SET active = $resultObj->active WHERE username='$resultObj->username'");
+		mysql_query("UPDATE pool_worker p SET active=".$resultObj->active." WHERE username='".$resultObj->username."'");
 	}
-	$settings->setsetting('currentworkers', $currentWorkers);
 } catch (Exception $e) {}
 
-//This isn't acurate, proportional is closer.
-/*if ($settings->getsetting("siterewardtype") == 0)
-{
-	//Cheat proof estimate
-	$userListQ = mysql_query("SELECT IFNULL(sum(exp(s1.score-s2.score)),0) as score, u.id, u.donate_percent FROM webUsers u, pool_worker p, shares_history s1, shares_history s2 WHERE s1.counted = 0 AND p.associatedUserId = u.id AND s1.username = p.username AND s2.id = s1.id-1 GROUP BY u.id");
-	while ($userListR = mysql_fetch_object($userListQ)) {
-		$donatePercent = $userListR->donate_percent;
-		$predonateAmount = (1-$f)*(1-$c)*$p*$B*$userListR->score;
-		$predonateAmount = rtrim(sprintf("%f",$predonateAmount ),"0");	
-		$totalReward = 0;
-		if ($predonateAmount > 0.00000001)
-		{
-			//Take out donation			
-			$totalReward = $predonateAmount - ($predonateAmount * ($donatePercent/100));
-								
-			//Round Down to 8 digits
-			$totalReward = $totalReward * 100000000;
-			$totalReward = floor($totalReward);
-			$totalReward = $totalReward/100000000;
-		} 
-		mysql_query("UPDATE webUsers SET round_estimate='".$totalReward."' WHERE id=".$userListR->id);
-	}
-} else {*/
-//Update them all at once, much more efficient.
-	//Proportional estimate
-	$totalRoundShares = $settings->getsetting("currentroundshares");
-	if ($totalRoundShares < $difficulty) $totalRoundShares = $difficulty;
-	$userListQ = mysql_query("UPDATE webUsers SET round_estimate = (1-$f)*50*(shares_this_round/$totalRoundShares)*(1-(donate_percent/100))");
-//}
+$totalRoundShares = $settings->getsetting("currentroundshares");
+//if ($totalRoundShares < $difficulty) $totalRoundShares = $difficulty;
+$userListQ = mysql_query("UPDATE webUsers SET round_estimate = (1-".$f.")*49.5*(shares_this_round/".$totalRoundShares.")*(1-(donate_percent/100))");
+
+
+$result = mysql_query("select count(id) as currentworkers from pool_worker where active=1");
+while ($resultObj = mysql_fetch_object($result)) {
+$settings->setsetting("currentworkers",$resultObj->currentworkers );
+}

@@ -16,61 +16,90 @@
 
 // 	  BTC Donations: 163Pv9cUDJTNUbadV4HMRQSSj3ipwLURRc
 
-//Check that script is run locally
-if (isset($_SERVER['REMOTE_ADDR']) && $_SERVER['REMOTE_ADDR'] != "127.0.0.1") {
-	echo "cronjobs can only be run locally.";
-	exit;
-}
-
 $includeDirectory = "/var/www/includes/";
 
 include($includeDirectory."requiredFunctions.php");
 
+//Verify source of cron job request
+if (isset($cronRemoteIP) && $_SERVER['REMOTE_ADDR'] !== $cronRemoteIP) {
+ die(header("Location: /"));
+}
+
+lock("hashrate.php");
+
 //Hashrate by worker
 $sql =  "SELECT IFNULL(sum(a.id),0) as id, p.username FROM pool_worker p LEFT JOIN ".
-			"((SELECT count(id) as id, username ". 
-			"FROM shares ". 
-			"WHERE time > DATE_SUB(now(), INTERVAL 10 MINUTE) ".
-			"GROUP BY username) ".
+			"((select count(id) as id, username ". 
+			"from shares ". 
+			"where time > DATE_SUB(now(), INTERVAL 10 MINUTE) ".
+			"group by username) ".
 		"UNION ". 
-			"(SELECT count(id) as id, username ". 
-			"FROM shares_history ". 
-			"WHERE time > DATE_SUB(now(), INTERVAL 10 MINUTE) ". 
-			"GROUP BY username)) a ".
+			"(select count(id) as id, username ". 
+			"from shares_history ". 
+			"where time > DATE_SUB(now(), INTERVAL 10 MINUTE) ". 
+			"group by username)) a ".
 		"ON p.username=a.username ".
-		"GROUP BY username";
+		"group by username";
 $result = mysql_query($sql);
 while ($resultrow = mysql_fetch_object($result)) {
 	$hashrate = $resultrow->id;
 	$hashrate = round((($hashrate*4294967296)/600)/1000000, 0);
-	mysql_query("UPDATE pool_worker SET hashrate = $hashrate WHERE username = '$resultrow->username'");
+	mysql_query("update pool_worker set hashrate=".$hashrate." where username='".$resultrow->username."'");
 }
+
+
+//This collects all stale records in the last 24 hours (stale_records_24_hours) and records them
+$sql = "SELECT IFNULL(sum(a.id),0) as id, p.username FROM pool_worker p LEFT JOIN ((select count(id) as id, username from shares where our_result='N' and reason='stale' AND time > DATE_SUB(now(), INTERVAL 1440 MINUTE) group by username) UNION (select count(id) as id, username from shares_history where our_result='N' and reason='stale' AND time > DATE_SUB(now(), INTERVAL 1440 MINUTE) group by username)) a ON p.username=a.username group by username";
+$result = mysql_query($sql);
+while ($resultrow = mysql_fetch_object($result)) {
+	$stalerecords = $resultrow->id;
+	mysql_query("update pool_worker set stale_records_24_hours=".$stalerecords." where username='".$resultrow->username."'");
+}
+
+//This collect all accepted records in the last 24 hours (accepted_records_24_hours) and records them
+$sql = "SELECT IFNULL(sum(a.id),0) as id, p.username FROM pool_worker p LEFT JOIN ((select count(id) as id, username from shares where our_result='Y' AND time > DATE_SUB(now(), INTERVAL 1440 MINUTE) group by username) UNION (select count(id) as id, username from shares_history where our_result='Y' AND time > DATE_SUB(now(), INTERVAL 1440 MINUTE) group by username)) a ON p.username=a.username group by username";
+$result = mysql_query($sql);
+while ($resultrow = mysql_fetch_object($result)) {
+        $acceptedrecords = $resultrow->id;
+        mysql_query("update pool_worker set accepted_records_24_hours=".$acceptedrecords." where username='".$resultrow->username."'");
+}
+
+
+
+//This collects all records accepted on current block and applies them individually to each worker
+$sql = "SELECT IFNULL(sum(a.id),0) as id, p.username FROM pool_worker p LEFT JOIN ((select count(id) as id, username from shares where our_result='Y' group by username) UNION (select count(id) as id, username from shares_history where our_result='Y' AND counted='0' group by username)) a ON p.username=a.username group by username";
+$result = mysql_query($sql);
+while ($resultrow = mysql_fetch_object($result)) {
+        $currentblockaccepted = $resultrow->id;
+        mysql_query("update pool_worker set accepted_current_block=".$currentblockaccepted." where username='".$resultrow->username."'");
+}
+
+
 
 //Total Hashrate (more exact than adding)
 $sql =  "SELECT sum(a.id) as id FROM ".
-			"((SELECT count(id) as id FROM shares WHERE time > DATE_SUB(now(), INTERVAL 10 MINUTE)) ".
+			"((select count(id) as id from shares where time > DATE_SUB(now(), INTERVAL 10 MINUTE)) ".
 		"UNION ". 
-			"(SELECT count(id) as id FROM shares_history WHERE time > DATE_SUB(now(), INTERVAL 10 MINUTE)) ". 
+			"(select count(id) as id from shares_history where time > DATE_SUB(now(), INTERVAL 10 MINUTE)) ". 
 			") a ";
 $result = mysql_query($sql);
 if ($resultrow = mysql_fetch_object($result)) {
 	$hashrate = $resultrow->id;
 	$hashrate = round((($hashrate*4294967296)/600)/1000000, 0);	
-	mysql_query("UPDATE settings SET value = '$hashrate' WHERE setting='currenthashrate'");
+	mysql_query("update settings set value='".$hashrate."' where setting='currenthashrate'");
 }
 
 //Hashrate by user
-$sql = "SELECT u.id, IFNULL(sum(p.hashrate),0) as hashrate ".
+$sql = "select u.id, IFNULL(sum(p.hashrate),0) as hashrate ".
 		"FROM webUsers u LEFT JOIN pool_worker p ". 
 		"ON p.associatedUserId = u.id ".
 		"GROUP BY id";
 $result = mysql_query($sql);
 while ($resultrow = mysql_fetch_object($result)) {
-	mysql_query("UPDATE webUsers SET hashrate = $resultrow->hashrate WHERE id = $resultrow->id");
-	mysql_query("INSERT INTO userHashrates (userId, hashrate) VALUES ($resultrow->id, $resultrow->hashrate)");
+	mysql_query("update webUsers set hashrate=".$resultrow->hashrate." where id=".$resultrow->id);
 }
 
 $currentTime = time();
-mysql_query("update settings set value='$currentTime' where setting='statstime'");
+mysql_query("update settings set value='".$currentTime."' where setting='statstime'");
 	
 ?>

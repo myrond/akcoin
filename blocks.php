@@ -58,35 +58,33 @@ if($resdssa == NULL || $resdssa->balanceDelta == NULL){
 	// FIX THIS CODE IF MISSING DATA IS INSERTED ************************************************
 	if( $blockNo <= 131574 )
 	{
-		$est = "Before Upgrade";
-		$users = "Before Upgrade";
-		$totals = "Before Upgrade";
+		$est = "Unknown";
+		$users = "Unknown";
+		$totals = "Unknown";
 	}
 	else
 	{
-		$est = "Missing Data";
-		$users = "Missing Data";
-		$totals = "Missing Data";
+		$est = "Not Confirmed";
+		$users = "Not Confirmed";
+		$totals = "Not Confirmed";
 	}
 
 } ELSE  {
-	//$est = number_format( $resdssa->balanceDelta, 8 );
+	$est = number_format( $resdssa->balanceDelta, 8 );
 	$users = number_format( $resdssa->count );
-	//$totals = number_format( $resdssa->totalShares );
+	$totals = number_format( $resdssa->totalShares );
 }
 
 	echo "<td><a href=\"http://blockexplorer.com/b/" . $blockNo . "\">" . number_format( $blockNo ) . "</a></td>";
 	echo "<td>" . $confirms . "</td>";
 	echo "<td>$realUsername</td>";
 	echo "<td>".strftime("%B %d %Y %r",$resultrow->timestamp)."</td>";
-	//echo "<td class=\"align_right\">" . $est . "</td>";
+	echo "<td class=\"align_right\">" . $est . "</td>";
 	echo "<td class=\"align_right\">" . $users . "</td>";
 	echo "<td class=\"align_right\">" . $totals . "</td>";
 }
 
 echo "</table>";
 echo "You will not get paid till Confirms have hit 120";
-echo "<br /><a class=\"fancy_button top_spacing\" href=\"stats.php\">";
-echo "<span style=\"background-color: #070;\">Stats</span></a>";
 
 include("includes/footer.php");

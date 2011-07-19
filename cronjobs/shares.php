@@ -17,14 +17,34 @@
 // 	  BTC Donations: 163Pv9cUDJTNUbadV4HMRQSSj3ipwLURRc
 
 //Check that script is run locally
-if (isset($_SERVER['REMOTE_ADDR']) && $_SERVER['REMOTE_ADDR'] != "127.0.0.1") {
-	echo "cronjobs can only be run locally.";
-	exit;
+
+//Verify source of cron job request
+if (isset($cronRemoteIP) && $_SERVER['REMOTE_ADDR'] !== $cronRemoteIP) {
+ die(header("Location: /"));
+}
+
+//if (isset($_SERVER['REMOTE_ADDR']) && $_SERVER['REMOTE_ADDR'] != "127.0.0.1") {
+//	echo "cronjobs can only be run locally.";
+//	exit;
+//}
+
+//Verify source of cron job request
+if (isset($cronRemoteIP) && $_SERVER['REMOTE_ADDR'] !== $cronRemoteIP) {
+ die(header("Location: /"));
 }
 
 $includeDirectory = "/var/www/includes/";
 
 include($includeDirectory."requiredFunctions.php");
+
+$maxblock=0;
+//fetch last block
+//lets just update the projected round as soon as confirms are greater than 7
+$sql = "select max(blockNumber) as blockNumber from networkBlocks where confirms > 7";
+$result = mysql_query($sql);
+while ($row = mysql_fetch_object($result)) {
+	$maxblock = "$row->blockNumber";
+}
 	
 ////Update share counts
 
@@ -41,7 +61,7 @@ try {
 	$sql ="SELECT sum(id) AS id, a.associatedUserId FROM ".
 		  "(SELECT count(s.id) AS id, p.associatedUserId FROM shares s, pool_worker p WHERE p.username=s.username AND s.our_result='Y' GROUP BY p.associatedUserId  ".
 		  "UNION ".
-		  "SELECT count(s.id) AS id, p.associatedUserId FROM shares_history s, pool_worker p WHERE p.username=s.username AND s.our_result='Y' AND s.counted='0' GROUP BY p.associatedUserId) a GROUP BY associatedUserId ";
+		  "SELECT count(s.id) AS id, p.associatedUserId FROM shares_history s, pool_worker p WHERE p.username=s.username AND s.our_result='Y' AND s.counted='0' AND s.blocknumber>'$maxblock' GROUP BY p.associatedUserId) a GROUP BY associatedUserId ";
 	$result = mysql_query($sql);
 	$totalsharesthisround = 0;
 	while ($row = mysql_fetch_object($result)) {

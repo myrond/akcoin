@@ -21,28 +21,39 @@ Website Reference:http://www.gnu.org/licenses/gpl-2.0.html
 
 //RPC Bitcoind Client Information
 $rpcType = "http"; // http or https
-$rpcUsername = "pool"; // username
-$rpcPassword = "pass"; // password
+$rpcUsername = "bitcoin"; // username
+$rpcPassword = "stickrpcpasshere"; // password
 $rpcHost = "localhost";
 
 
 //Login to Mysql with the following
 $dbHost = "localhost";
-$dbUsername = "pushpool";
-$dbPassword = "pass";
+$dbUsername = "bitcoin";
+$dbPassword = "stickmysqlpasshere";
 $dbPort = "3306";
-$dbDatabasename = "simplecoin";
+$dbDatabasename = "bitcoin";
 
 //Cookie settings | More Info @ http://us.php.net/manual/en/function.setcookie.php
-$cookieName = "simplecoinus"; //Set this to what ever you want "Cheesin?"
-$cookiePath = "/";	//Choose your path!
-$cookieDomain = ""; //Set this to your domain
+$cookieName = "ak"; //Set this to what ever you want "Cheesin?"
+$cookiePath = "/";      //Choose your path!
+$cookieDomain = "akpool.org"; //Set this to your domain
+
+$cronRemoteIP = "209.160.27.93";
+// Who to show errors for
+//$developers = array(
+//	'IP' 
+//);
+//$developerPassword = '';
+
+//if (in_array($_SERVER['REMOTE_ADDR'], $developers) or isset($_GET['dev']) and $_GET['dev'] == $developerPassword) {
+//	ini_set('display_errors', '1');
+//}
 
 include("bitcoinController/bitcoin.inc.php");
 
 //Encrypt settings
-$salt = "123483jd7Dg6h5s92k"; //Just type a random series of numbers and letters; set it to anything or any length you want. "You can never have enough salt."
-$cookieValid = false; //Don't touch leave as: false
+$salt = "ohvohM8paeHai1ae"; //Just type a random series of numbers and letters; set it to anything or any length you want. "You can never have enough salt."
+$cookieValid	= false; //Don't touch leave as: false
 
 connectToDb();
 include('settings.php');
@@ -75,28 +86,27 @@ class checkLogin
 		//Split cookie into 2 mmmmm!
 		$cookieInfo = explode("-", $input);
 		
-		$validCookie = false;
-		
 		//Get "secret" from MySql database
-		$tempId = mysql_real_escape_string($cookieInfo[0]);
+                $tempId = mysql_real_escape_string($cookieInfo[0]);
 		if (!is_numeric($tempId)) {
-			$tempId = 0;	
-			return false;
+		$tempId = 0;  
+		return false;
 		}
-		$getSecretQ	= mysql_query("SELECT secret, pass, sessionTimeoutStamp FROM webUsers WHERE id = $tempId LIMIT 0,1");
-		if ($getSecret = mysql_fetch_object($getSecretQ)) {
-			$password	= $getSecret->pass;
-			$secret	= $getSecret->secret;
-			$timeoutStamp	= $getSecret->sessionTimeoutStamp;
+	        $getSecretQ  = mysql_query("SELECT secret, pass, sessionTimeoutStamp FROM webUsers WHERE id = $tempId LIMIT 0,1");
+		//$getSecretQ	= mysql_query("SELECT secret, pass, sessionTimeoutStamp FROM webUsers WHERE id = ".mysql_real_escape_string($cookieInfo[0])." LIMIT 0,1");
+		$getSecret	= mysql_fetch_object($getSecretQ);
+		$password	= $getSecret->pass;
+		$secret	= $getSecret->secret;
+		$timeoutStamp	= $getSecret->sessionTimeoutStamp;
 			
-			//Create a variable to test the cookie hash against
-			$hashTest = hash("sha256", $secret.$password.$ipaddress.$timeoutStamp.$salt);
+		//Create a variable to test the cookie hash against
+		$hashTest = hash("sha256", $secret.$password.$ipaddress.$timeoutStamp.$salt);
 			
-			//Test if $hashTest = $cookieInfo[1] hash value; return results
-			if($hashTest == $cookieInfo[1]){		
-				$validCookie = true;
-			}				
-		}
+		//Test if $hashTest = $cookieInfo[1] hash value; return results
+		$validCookie = false;			
+		if($hashTest == $cookieInfo[1]){		
+			$validCookie = true;
+		}				
 		return $validCookie;
 	}
 	
@@ -141,9 +151,55 @@ function genRandomString($length=10) {
     return $string;
 }
 
-
 function antiXss($input) {
 	//strip HTML tags from input data
 	return htmlentities(strip_tags($input), ENT_QUOTES);
 }
+
+function sqlerr($file = '', $line = '')
+{
+  print("<table border=0 bgcolor=blue align=left cellspacing=0 cellpadding=10 style='background: blue'>" .
+    "<tr><td class=embedded><font color=white><h1>SQL Error</h1>\n" .
+  "<b>" . mysql_error() . ($file != '' && $line != '' ? "<p>in $file, line $line</p>" : "") . "</b></font></td></tr></table>");
+  die;
+}
+
+function sqlesc($x) {
+    return "'".mysql_real_escape_string($x)."'";
+}
+
+$_current_lock = null;
+
+function unlock() {
+	global $_current_lock;
+	$sql = "UPDATE locks SET locked = 0 WHERE name = '" . mysql_real_escape_string($_current_lock) . "'";
+	mysql_query($sql);
+	//echo("unlocked.\n");
+}
+
+function lock($name) {
+	global $_current_lock;
+	mysql_query("LOCK TABLES locks WRITE");
+	$q = mysql_query("SELECT locked FROM locks WHERE name = '" . mysql_real_escape_string($name) . "'");
+
+	$lock = mysql_fetch_object($q);
+	if ($lock === false) {
+		mysql_query("INSERT INTO locks (name, locked) VALUES ('".mysql_real_escape_string($name)."', 1)");
+		//echo("New lock.\n");
+	} elseif ($lock->locked) {
+		echo("Lock already held, exiting. (".$name.")");
+		mysql_query("UNLOCK TABLES");
+		exit();
+		return;
+	} else {		
+		mysql_query("UPDATE locks SET locked = 1 WHERE name = '" . mysql_real_escape_string($name) . "'");
+		//echo("Taking lock.\n");
+	}
+	
+	mysql_query("UNLOCK TABLES");
+	$_current_lock = $name;
+	register_shutdown_function('unlock');
+}
+
+
 ?>

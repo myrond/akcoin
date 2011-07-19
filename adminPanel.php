@@ -15,7 +15,6 @@
 //    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 // 	  BTC Donations: 163Pv9cUDJTNUbadV4HMRQSSj3ipwLURRc
-
 $pageTitle = "- Admin Panel";
 include ("includes/header.php");
 
@@ -30,16 +29,15 @@ if(!$cookieValid || $isAdmin != 1) {
 	exit;
 }
 
-if (isset($_POST["act"]) && isset($_POST["authPin"]))
-{
-	if (isset($_POST["authPin"])) {
-		$inputAuthPin = hash("sha256", $_POST["authPin"].$salt);
-	} else {
-		$inputAuthPin = NULL;
-	}
+if (isset($_POST["act"])) {
+$act = mysql_real_escape_string($_POST["act"]);
+}
 
+if (isset($act) && isset($_POST["authPin"]))
+{
+	$inputAuthPin = hash("sha256", $_POST["authPin"].$salt);
 	//Make sure an authPin is set and valid when $act is active
-	if($_POST["act"] && $_$authPin == $inputAuthPin){
+	if($act && $authPin == $inputAuthPin){
 		//Update information if needed
 		if($act == "UpdateMainPageSettings"){
 			try {		
@@ -63,9 +61,7 @@ if (isset($_POST["act"]) && isset($_POST["authPin"]))
 //Display Error and Good Messages(If Any)
 echo "<span class=\"goodMessage\">".antiXss($goodMessage)."</span><br/>";
 echo "<span class=\"returnMessage\">".antiXss($returnError)."</span>";
-
 ?>
-
 <div id="AdminContainer">
 	<h1 style="text-decoration:underline;">Welcome back admin</h1><br/>
 	<h3>General Settings</h3>
