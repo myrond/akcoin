@@ -1,0 +1,11 @@
+*/10 *     * * *     www-data   curl http://akpool.org/cronjobs/cronjob.php 1>/dev/null 2>/dev/null
+*/11 * * * *	www-data	curl http://akpool.org/cronjobs/archive.php 1>/dev/null 2>/dev/null
+*/3 *     * * *     www-data   curl http://akpool.org/cronjobs/hashrate.php 1>/dev/null 2>/dev/null
+47 *     * * *     www-data   curl http://akpool.org/cronjobs/payout.php 1>/dev/null 2>/dev/null
+*/5 *     * * *     www-data   curl http://akpool.org/cronjobs/shares.php 1>/dev/null 2>/dev/null
+*/5 * * * *	www-data	curl http://akpool.org/cronjobs/scores.php 1>/dev/null 2>/dev/null
+*/10 *     * * *     www-data   curl http://akpool.org/cronjobs/workers.php 1>/dev/null 2>/dev/null
+11 2 * * *	www-data	curl http://akpool.org/cronjobs/hashhistory.php 1>/dev/null 2>/dev/null
+21 2 * * *	www-data	curl http://akpool.org/cronjobs/workerhistory.php 1>/dev/null 2>/dev/null
+31 2 * * *	www-data	curl http://akpool.org/cronjobs/sharehistory.php 1>/dev/null 2>/dev/null
+*/20 *	* * * www-data	curl http://akpool.org/cronjobs/unlockaccounts.php 1>/dev/null 2>/dev/null
