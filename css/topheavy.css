@@ -1,0 +1,29 @@
+#middlecolumn{
+width: 677px;
+padding-right: 0;
+}
+
+#bottomarea{
+margin-top: 1em;
+}
+
+#bottomleft{
+width: 490px;
+border-right: 1px solid #dadada;
+padding-right: 7px;
+}
+
+#bottomright{
+width: 170px;
+padding-left: 6px;
+float: right;
+font-size: 90%;
+}
+
+#bottomright p{
+margin: 8px 0;
+}
+
+#bottomleft .titlebar, #bottomright .titlebar{
+margin-top: 0;
+}
